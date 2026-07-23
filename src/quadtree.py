@@ -41,7 +41,7 @@ class Cell:
             assert self.dUdt is not None # must have grad for MUSCL
 
             MUSCL_W = self.W + self.prim_grad[:, 0] * (x - self.x) + self.prim_grad[:, 1] * (y - self.y)
-            return self.MUSCL_W if var == 'W' else prim2con(MUSCL_W)
+            return MUSCL_W if var == 'W' else prim2con(MUSCL_W)
 
 
 class Mesh:
@@ -86,6 +86,10 @@ class Mesh:
                 else:
                     stack.extend(c.children)
         return out
+
+    def get_value(self, x, y, var):
+        c = self.find_cell(x, y)
+        return c.get_value(x, y, var, self.reconstruction)
 
 
     def find_cell(self, x, y):

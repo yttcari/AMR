@@ -137,22 +137,53 @@ def get_grad(mesh, c, var='U'):
     return g
 
 
-def density_array(uniform_mesh):
-    N = uniform_mesh.Nx
-    h = uniform_mesh.h0
-    a = np.zeros((N, N))
-    for c in uniform_mesh.get_active_cells():
-        a[int(c.x / h), int(c.y / h)] = con2prim(c.U)[0]
-    return a
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
+def L1_error(mesh, mesh_ref, var='W', plot=True):
 
-def l1_error_vs_uniform(mesh, rho_ref, h_ref):
-    err = 0.0
-    for c in mesh.get_active_cells():
-        i0 = int(round((c.x - c.h / 2) / h_ref))
-        i1 = int(round((c.x + c.h / 2) / h_ref))
-        j0 = int(round((c.y - c.h / 2) / h_ref))
-        j1 = int(round((c.y + c.h / 2) / h_ref))
-        block = rho_ref[i0:i1, j0:j1].mean()
-        err += c.vol * abs(con2prim(c.U)[0] - block)
-    return err
+    cell_list = mesh.get_active_cells()
+
+    errors = []       # per-cell |value - ref_value| (vector, len 4)
+    volumes = []       # per-cell volume, for weighting
+
+    for c in cell_list:
+
+        val = mesh.get_value(x=c.x, y=c.y, var=var)
+        ref_val = mesh_ref.get_value(x=c.x, y=c.y, var=var)
+
+        err = np.abs(val - ref_val)
+        errors.append(err)
+        volumes.append(c.volume)
+
+    errors = np.array(errors)     # shape (Ncells, 4)
+    volumes = np.array(volumes)   # shape (Ncells,)
+
+    # volume-weighted L1 norm
+    L1 = np.sum(errors * volumes[:, None], axis=0) / np.sum(volumes)
+
+    if plot:
+        # plot the density-error component 
+        fig, ax = plt.subplots(figsize=(6, 6))
+        err_density = errors[:, 0]
+        vmax = err_density.max() if err_density.max() > 0 else 1.0
+
+        cmap = plt.get_cmap('viridis')
+        for c, e in zip(cell_list, err_density):
+            color = cmap(e / vmax)
+            rect = patches.Rectangle(
+                (c.x - c.h / 2, c.y - c.h / 2), c.h, c.h,
+                facecolor=color, edgecolor='none'
+            )
+            ax.add_patch(rect)
+
+        ax.set_xlim(0, mesh.Lx)
+        ax.set_ylim(0, mesh.Ly)
+        ax.set_aspect('equal')
+        ax.set_title(f'{var}[0] error (density), L1 = {L1[0]:.4e}')
+
+        sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(0, vmax))
+        fig.colorbar(sm, ax=ax, label='|error|')
+        plt.show()
+
+    return L1
