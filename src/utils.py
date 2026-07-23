@@ -117,7 +117,7 @@ def grad_and_chi(mesh, c):
 
 
 def get_grad(mesh, c, var='U'):
-    value = c.get_value(var)
+    value = c.get_cell_value(var)
 
     g = np.zeros((4, 2))
 
@@ -127,8 +127,8 @@ def get_grad(mesh, c, var='U'):
 
         if positive_cells and negative_cells:
 
-            avg_p = np.mean([n.get_value(var) for n in positive_cells], axis=0)
-            avg_M = np.mean([n.get_value(var) for n in negative_cells], axis=0)
+            avg_p = np.mean([n.get_cell_value(var) for n in positive_cells], axis=0)
+            avg_M = np.mean([n.get_cell_value(var) for n in negative_cells], axis=0)
             
             grad_p = (avg_p - value) / (0.5 * (c.h + positive_cells[0].h))
             grad_m = (value - avg_M) / (0.5 * (c.h + negative_cells[0].h))

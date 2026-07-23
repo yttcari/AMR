@@ -1,6 +1,6 @@
-from src.constant import *
-from src.utils import *
-from src.quadtree import *
+from constant import *
+from utils import *
+from quadtree import *
 
 
 def refine_cell(mesh, c):

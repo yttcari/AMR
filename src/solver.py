@@ -1,5 +1,5 @@
-from src.constant import *
-from src.utils import *
+from constant import *
+from utils import *
 
 def build_faces(mesh):
     

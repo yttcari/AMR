@@ -1,3 +1,6 @@
+from utils import *
+from constant import *
+
 class Cell:
     __slots__ = ('x', 'y', 'h', 'level', 'parent', 'children',
                  'U', 'U0', 'W', 'prim_grad', 'dUdt', 'L0', 'chi', 'flag', 'volume')
@@ -19,7 +22,7 @@ class Cell:
     def vol(self):
         return self.volume
 
-    def get_value(self, var):
+    def get_cell_value(self, var):
         if var == 'U':
             return self.U
         elif var == 'W':
@@ -27,15 +30,29 @@ class Cell:
         else:
             raise ValueError("Does not recognise the input variable")
 
+    def get_value(self, x, y, var, reconstruction=0):
+        # make sure the input coord is within the cell
+        assert x <= self.x + self.h/2 and x >= self.x - self.h/2
+        assert y <= self.y + self.h/2 and y >= self.y - self.h/2
+
+        if reconstruction == 0:
+            return self.W if var == 'W' else self.U
+        elif reconstruction == 1:
+            assert self.dUdt is not None # must have grad for MUSCL
+
+            MUSCL_W = self.W + self.prim_grad[:, 0] * (x - self.x) + self.prim_grad[:, 1] * (y - self.y)
+            return self.MUSCL_W if var == 'W' else prim2con(MUSCL_W)
+
 
 class Mesh:
 
-    def __init__(self, Nx, Ny, Lx, Ly, bc='outflow', max_level=2):
+    def __init__(self, Nx, Ny, Lx, Ly, bc='outflow', max_level=2, reconstruction=1):
         self.Nx, self.Ny, self.Lx, self.Ly = Nx, Ny, Lx, Ly
         self.h0 = Lx / Nx # width
         self.bc = bc # boundary condition
         self.indicator = 'jump'   # 'jump' | 'detail' (Harten/Loehner)
         self.max_level = max_level
+        self.reconstruction = reconstruction # 0: Godunov, 1: MUSCL
 
         # initialize mesh
         self.base = [[Cell((i + 0.5) * self.h0, (j + 0.5) * self.h0, self.h0, 0)
@@ -87,6 +104,11 @@ class Mesh:
             idx = (1 if x > node.x else 0) + (2 if y > node.y else 0)
             node = node.children[idx]
         return node
+
+    def get_cell_value(self, x, y, var):
+        c = self.find_cell(x, y)
+        if self.reconstruction == 0:
+            return c.get_value(x, y, var, self.reconstruction)
 
     def neighbors(self, c, d):
         """
