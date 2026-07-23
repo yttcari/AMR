@@ -1,7 +1,8 @@
 import numpy as np
 from quadtree import *
 from advance import *
-from io import *
+from mesh_io import *
+from utils import *
 
 def init_from(mesh, W_init):
     for c in mesh.get_active_cells():
@@ -50,6 +51,7 @@ def run_blast(Nx=32, max_level=2, t_end=0.15, cfl=0.4,
             if mode == 'between':
                 if step % regrid_every == 0:
                     regrid(mesh, eta_refine, eta_coarsen, max_level)
+                    grad_init(mesh)
 
         if verbose and step % 20 == 0:
             print(f"step {step:4d}  t={t:.4f}  dt={dt:.2e}  "

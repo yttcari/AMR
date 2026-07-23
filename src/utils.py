@@ -115,6 +115,10 @@ def grad_and_chi(mesh, c):
 
     return g, chi
 
+def grad_init(mesh):
+    for c in mesh.get_active_cells():
+        grad, _ = grad_and_chi(mesh, c)
+        c.prim_grad = grad
 
 def get_grad(mesh, c, var='U'):
     value = c.get_cell_value(var)
@@ -141,36 +145,42 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
 def L1_error(mesh, mesh_ref, var='W', plot=True):
+    import matplotlib.colors as mcolors
 
     cell_list = mesh.get_active_cells()
 
-    errors = []       # per-cell |value - ref_value| (vector, len 4)
+    errors = []       # per-cell (value - ref_value), signed, vector len 4
     volumes = []       # per-cell volume, for weighting
 
     for c in cell_list:
-
-        val = mesh.get_value(x=c.x, y=c.y, var=var)
+        try:
+            val = mesh.get_value(x=c.x, y=c.y, var=var)
+        except:
+            print(c)
+            raise ValueError
         ref_val = mesh_ref.get_value(x=c.x, y=c.y, var=var)
 
-        err = np.abs(val - ref_val)
+        err = val - ref_val
         errors.append(err)
         volumes.append(c.volume)
 
     errors = np.array(errors)     # shape (Ncells, 4)
     volumes = np.array(volumes)   # shape (Ncells,)
 
-    # volume-weighted L1 norm
-    L1 = np.sum(errors * volumes[:, None], axis=0) / np.sum(volumes)
+    # volume-weighted L1 norm (always uses magnitude, regardless of plot coloring)
+    L1 = np.sum(np.abs(errors) * volumes[:, None], axis=0) / np.sum(volumes)
 
     if plot:
-        # plot the density-error component 
         fig, ax = plt.subplots(figsize=(6, 6))
-        err_density = errors[:, 0]
-        vmax = err_density.max() if err_density.max() > 0 else 1.0
+        err_mag = np.abs(errors[:, 0])                 # magnitude: 0 at no error
+        vmax = err_mag.max() if err_mag.max() > 0 else 1.0
 
-        cmap = plt.get_cmap('viridis')
-        for c, e in zip(cell_list, err_density):
-            color = cmap(e / vmax)
+        cmap = mcolors.LinearSegmentedColormap.from_list(
+            'white_to_red', ['white', 'firebrick'])
+        norm = mcolors.Normalize(vmin=0.0, vmax=vmax)
+
+        for c, e in zip(cell_list, err_mag):
+            color = cmap(norm(e))
             rect = patches.Rectangle(
                 (c.x - c.h / 2, c.y - c.h / 2), c.h, c.h,
                 facecolor=color, edgecolor='none'
@@ -180,9 +190,9 @@ def L1_error(mesh, mesh_ref, var='W', plot=True):
         ax.set_xlim(0, mesh.Lx)
         ax.set_ylim(0, mesh.Ly)
         ax.set_aspect('equal')
-        ax.set_title(f'{var}[0] error (density), L1 = {L1[0]:.4e}')
+        ax.set_title(f'{var}[0] |error| (density), L1 = {L1[0]:.4e}')
 
-        sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(0, vmax))
+        sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
         fig.colorbar(sm, ax=ax, label='|error|')
         plt.show()
 
