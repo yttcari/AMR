@@ -1,5 +1,5 @@
-from refinenent import *
-from solver import *
+from src.refinenent import *
+from src.solver import *
 
 def compute_dt(mesh, cfl):
     wmax = 0.0

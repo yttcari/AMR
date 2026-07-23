@@ -1,7 +1,7 @@
 import numpy as np
-from quadtree import *
-from advance import *
-from viz import *
+from src.quadtree import *
+from src.advance import *
+from src.viz import *
 
 def init_from(mesh, W_init):
     for c in mesh.get_active_cells():
@@ -16,6 +16,7 @@ def run_blast(Nx=32, max_level=2, t_end=0.15, cfl=0.4,
 
     mode='in_step'  : new flagging
     mode='between'  : original flagging
+    mode='uniform'  : no refinement
     """
     if eta_refine is None:
         eta_refine = {'jump': 0.12, 'detail': 0.45}[indicator]
@@ -46,8 +47,10 @@ def run_blast(Nx=32, max_level=2, t_end=0.15, cfl=0.4,
             dt = advance(mesh, cfl, dt_max=t_end - t)
             t += dt
             step += 1
-            if step % regrid_every == 0:
-                regrid(mesh, eta_refine, eta_coarsen, max_level)
+            if mode == 'between':
+                if step % regrid_every == 0:
+                    regrid(mesh, eta_refine, eta_coarsen, max_level)
+                    
         if verbose and step % 20 == 0:
             print(f"step {step:4d}  t={t:.4f}  dt={dt:.2e}  "
                   f"get_active_cells={len(mesh.get_active_cells()):5d}")
@@ -59,8 +62,3 @@ def run_blast(Nx=32, max_level=2, t_end=0.15, cfl=0.4,
              title=f'2D AMR blast, base {Nx}x{Nx}, max level {max_level}, '
                    f't={t:.3f}')
     return mesh
-
-
-if __name__ == '__main__':
-    run_blast(Nx=32, max_level=2, t_end=0.15,
-              plot_file='amr2d_blast.png')

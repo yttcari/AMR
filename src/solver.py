@@ -1,5 +1,5 @@
-from constant import *
-from utils import *
+from src.constant import *
+from src.utils import *
 
 def build_faces(mesh):
     
@@ -35,10 +35,10 @@ def build_faces(mesh):
     return interior, boundary_cells
 
 
-def reconstruct(c, xf, yf):
+def reconstruct(c, xface, yface):
     # MUSCL reconstruction
     # TODO: add selection for multipler order
-    W = c.W + c.prim_grad[:, 0] * (xf - c.x) + c.prim_grad[:, 1] * (yf - c.y)
+    W = c.W + c.prim_grad[:, 0] * (xface - c.x) + c.prim_grad[:, 1] * (yface - c.y)
     if W[0] <= EPSILON or W[3] <= EPSILON:
         return c.W.copy()
     return W
@@ -55,11 +55,11 @@ def compute_rhs(mesh, interior, boundary_cells):
     for c in get_active_cells:
         c.prim_grad, c.chi = grad_and_chi(mesh, c)
 
-    for (L, R, axis, xf, yf, face_length) in interior:
-        WL = reconstruct(L, xf, yf)
-        WR = reconstruct(R, xf, yf)
+    for (L, R, axis, xface, yface, face_length) in interior:
+        primL = reconstruct(L, xface, yface)
+        primR = reconstruct(R, xface, yface)
     
-        flux = riemann(WL, WR, axis)
+        flux = riemann(primL, primR, axis)
     
         L.dUdt -= flux * face_length / L.volume
         R.dUdt += flux * face_length / R.volume
@@ -69,11 +69,11 @@ def compute_rhs(mesh, interior, boundary_cells):
         sgn = 1.0 if d in ('+x', '+y') else -1.0
 
         if axis == 0:
-            xf, yf = c.x + sgn * c.h / 2, c.y
+            xface, yface = c.x + sgn * c.h / 2, c.y
         else:
-            xf, yf = c.x, c.y + sgn * c.h / 2
+            xface, yface = c.x, c.y + sgn * c.h / 2
 
-        Wi = reconstruct(c, xf, yf)
+        Wi = reconstruct(c, xface, yface)
         Wg = Wi.copy()
 
         if mesh.bc == 'reflect':
