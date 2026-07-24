@@ -6,13 +6,50 @@ import numpy as np
 from utils import *
 from quadtree import *
 
+
 def plot(mesh, fname=None, title=''):
     get_active_cells = mesh.get_active_cells()
+ 
+    if mesh.Nx == 1 or mesh.Ny == 1:
+        # degenerate direction: plot values along the surviving axis
+        # instead of the 2D patch grid.
+        along_x = mesh.Ny == 1
+        coord = np.array([c.x if along_x else c.y for c in get_active_cells])
+        rho = np.array([con2prim(c.U)[0] for c in get_active_cells])
+        lvl = np.array([c.level for c in get_active_cells], dtype=float)
+ 
+        order = np.argsort(coord)
+        coord, rho, lvl = coord[order], rho[order], lvl[order]
+ 
+        fig, axes = plt.subplots(1, 2, figsize=(12.5, 4.5))
+ 
+        axes[0].plot(coord, rho)
+        axes[0].set_xlabel('x' if along_x else 'y')
+        axes[0].set_ylabel(r'density $\rho$')
+        axes[0].set_title(r'density $\rho$')
+        axes[0].grid(alpha=0.3)
+ 
+        axes[1].plot(coord, lvl)
+        axes[1].set_xlabel('x' if along_x else 'y')
+        axes[1].set_ylabel('refinement level')
+        axes[1].set_title('refinement level')
+        axes[1].set_ylim(-0.5, max(lvl.max(), mesh.max_level) + 0.5)
+        axes[1].grid(alpha=0.3)
+ 
+        fig.suptitle(title)
+        fig.tight_layout()
+        if fname:
+            fig.savefig(fname, dpi=150)
+        else:
+            plt.show()
+        plt.close(fig)
+        return
+ 
     rho = np.array([con2prim(c.U)[0] for c in get_active_cells])
     lvl = np.array([c.level for c in get_active_cells], dtype=float)
     rects = [Rectangle((c.x - c.h / 2, c.y - c.h / 2), c.h, c.h)
              for c in get_active_cells]
-
+ 
     fig, axes = plt.subplots(1, 2, figsize=(12.5, 5.6))
     for ax, vals, cmap, lab in ((axes[0], rho, 'viridis', r'density $\rho$'),
                                 (axes[1], lvl, 'plasma', 'refinement level')):

@@ -143,15 +143,15 @@ def get_grad(mesh, c, var='U'):
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-
+ 
 def L1_error(mesh, mesh_ref, var='W', plot=True):
     import matplotlib.colors as mcolors
-
+ 
     cell_list = mesh.get_active_cells()
-
+ 
     errors = []       # per-cell (value - ref_value), signed, vector len 4
     volumes = []       # per-cell volume, for weighting
-
+ 
     for c in cell_list:
         try:
             val = mesh.get_value(x=c.x, y=c.y, var=var)
@@ -159,26 +159,45 @@ def L1_error(mesh, mesh_ref, var='W', plot=True):
             print(c)
             raise ValueError
         ref_val = mesh_ref.get_value(x=c.x, y=c.y, var=var)
-
+ 
         err = val - ref_val
         errors.append(err)
         volumes.append(c.volume)
-
-    errors = np.array(errors)     # shape (Ncells, 4)
-    volumes = np.array(volumes)   # shape (Ncells,)
-
+ 
+    errors = np.array(errors)     
+    volumes = np.array(volumes)   
+ 
     # volume-weighted L1 norm (always uses magnitude, regardless of plot coloring)
     L1 = np.sum(np.abs(errors) * volumes[:, None], axis=0) / np.sum(volumes)
-
+ 
     if plot:
-        fig, ax = plt.subplots(figsize=(6, 6))
         err_mag = np.abs(errors[:, 0])                 # magnitude: 0 at no error
+ 
+        if mesh.Nx == 1 or mesh.Ny == 1:
+            # degenerate direction: plot |error| along the surviving axis
+            # instead of the 2D patch grid.
+            along_x = mesh.Ny == 1
+            coord = np.array([c.x if along_x else c.y for c in cell_list])
+ 
+            order = np.argsort(coord)
+            coord_s, err_s = coord[order], err_mag[order]
+ 
+            fig, ax = plt.subplots(figsize=(7, 4.5))
+            ax.plot(coord_s, err_s, color='red')
+            ax.set_xlabel('x' if along_x else 'y')
+            ax.set_ylabel('|error|')
+            ax.set_title(f'{var}[0] |error| (density), L1 = {L1[0]:.4e}')
+            ax.grid(alpha=0.3)
+            plt.show()
+            return L1
+ 
+        fig, ax = plt.subplots(figsize=(6, 6))
         vmax = err_mag.max() if err_mag.max() > 0 else 1.0
-
+ 
         cmap = mcolors.LinearSegmentedColormap.from_list(
             'white_to_red', ['white', 'firebrick'])
         norm = mcolors.Normalize(vmin=0.0, vmax=vmax)
-
+ 
         for c, e in zip(cell_list, err_mag):
             color = cmap(norm(e))
             rect = patches.Rectangle(
@@ -186,14 +205,14 @@ def L1_error(mesh, mesh_ref, var='W', plot=True):
                 facecolor=color, edgecolor='none'
             )
             ax.add_patch(rect)
-
+ 
         ax.set_xlim(0, mesh.Lx)
         ax.set_ylim(0, mesh.Ly)
         ax.set_aspect('equal')
         ax.set_title(f'{var}[0] |error| (density), L1 = {L1[0]:.4e}')
-
+ 
         sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
         fig.colorbar(sm, ax=ax, label='|error|')
         plt.show()
-
+ 
     return L1
