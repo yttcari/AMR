@@ -38,7 +38,7 @@ class Cell:
         if reconstruction == 0:
             return self.W if var == 'W' else self.U
         elif reconstruction == 1:
-            assert self.dUdt is not None 
+            assert self.prim_grad is not None 
 
             MUSCL_W = self.W + self.prim_grad[:, 0] * (x - self.x) + self.prim_grad[:, 1] * (y - self.y)
             return MUSCL_W if var == 'W' else prim2con(MUSCL_W)

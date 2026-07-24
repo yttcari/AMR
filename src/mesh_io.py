@@ -7,7 +7,7 @@ from utils import *
 from quadtree import *
 
 
-def plot(mesh, fname=None, title=''):
+def plot(mesh, fname=None, var='rho', title=''):
     get_active_cells = mesh.get_active_cells()
  
     if mesh.Nx == 1 or mesh.Ny == 1:
@@ -15,7 +15,15 @@ def plot(mesh, fname=None, title=''):
         # instead of the 2D patch grid.
         along_x = mesh.Ny == 1
         coord = np.array([c.x if along_x else c.y for c in get_active_cells])
-        rho = np.array([con2prim(c.U)[0] for c in get_active_cells])
+        if var == 'rho':
+            rho = np.array([con2prim(c.U)[0] for c in get_active_cells])
+        elif var == 'vx':
+            rho = np.array([con2prim(c.W)[1] for c in get_active_cells])
+        elif var == 'vy':
+            rho = np.array([con2prim(c.W)[2] for c in get_active_cells])
+        elif var == 'p':
+            rho = np.array([con2prim(c.W)[3] for c in get_active_cells])
+        print(f'Plotting {var}')
         lvl = np.array([c.level for c in get_active_cells], dtype=float)
  
         order = np.argsort(coord)
@@ -26,7 +34,7 @@ def plot(mesh, fname=None, title=''):
         axes[0].plot(coord, rho)
         axes[0].set_xlabel('x' if along_x else 'y')
         axes[0].set_ylabel(r'density $\rho$')
-        axes[0].set_title(r'density $\rho$')
+        axes[0].set_title(f'{var}')
         axes[0].grid(alpha=0.3)
  
         axes[1].plot(coord, lvl)
@@ -45,13 +53,21 @@ def plot(mesh, fname=None, title=''):
         plt.close(fig)
         return
  
-    rho = np.array([con2prim(c.U)[0] for c in get_active_cells])
+    if var == 'rho':
+        rho = np.array([con2prim(c.U)[0] for c in get_active_cells])
+    elif var == 'vx':
+        rho = np.array([con2prim(c.W)[1] for c in get_active_cells])
+    elif var == 'vy':
+        rho = np.array([con2prim(c.W)[2] for c in get_active_cells])
+    elif var == 'p':
+        rho = np.array([con2prim(c.W)[3] for c in get_active_cells])
+
     lvl = np.array([c.level for c in get_active_cells], dtype=float)
     rects = [Rectangle((c.x - c.h / 2, c.y - c.h / 2), c.h, c.h)
              for c in get_active_cells]
  
     fig, axes = plt.subplots(1, 2, figsize=(12.5, 5.6))
-    for ax, vals, cmap, lab in ((axes[0], rho, 'viridis', r'density $\rho$'),
+    for ax, vals, cmap, lab in ((axes[0], rho, 'viridis', var),
                                 (axes[1], lvl, 'plasma', 'refinement level')):
         pc = PatchCollection([Rectangle(r.get_xy(), r.get_width(), r.get_height())
                               for r in rects],

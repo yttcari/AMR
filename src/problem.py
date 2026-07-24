@@ -55,7 +55,7 @@ def run_sim(mesh, max_level, t_end, cfl, eta_refine, eta_coarsen,
 def run_blast(Nx=32, max_level=2, t_end=0.15, cfl=0.4,
               eta_refine=None, eta_coarsen=None, regrid_every=2,
               mode='in_step', indicator='detail',
-              plot_file=None, verbose=True):
+              plot_file=None, verbose=True, init=True, mesh=None):
     """
     Cylindrical Sod-type blast on [0,1]^2, outflow boundaries.
 
@@ -73,9 +73,9 @@ def run_blast(Nx=32, max_level=2, t_end=0.15, cfl=0.4,
         if r < 0.13:
             return np.array([1.0, 0.0, 0.0, 1.0])
         return np.array([0.125, 0.0, 0.0, 0.1])
-
-    mesh = Mesh(Nx, Nx, 1.0, 1.0, bc='outflow')
-    mesh.indicator = indicator
+    if init:
+        mesh = Mesh(Nx, Nx, 1.0, 1.0, bc='outflow')
+        mesh.indicator = indicator
 
     init_from(mesh, W_init)
     
@@ -198,7 +198,7 @@ def run_implosion(Nx=64, max_level=3, t_end=2.5, cfl=0.4,
 def run_riemann2d(Nx=64, max_level=3, t_end=0.3, cfl=0.4,
                   eta_refine=None, eta_coarsen=None, regrid_every=2,
                   mode='between', indicator='detail',
-                  plot_file=None, verbose=True):
+                  plot_file=None, verbose=True, init=True, mesh=None):
     """
     Quad 1 : rho=1.5,    u=0,     v=0,     p=1.5
     Quad 2 : rho=0.5323, u=1.206, v=0,     p=0.3
@@ -219,10 +219,12 @@ def run_riemann2d(Nx=64, max_level=3, t_end=0.3, cfl=0.4,
             return np.array([0.138, 1.206, 1.206, 0.029])
         return np.array([0.5323, 0.0, 1.206, 0.3])
 
-    mesh = Mesh(Nx, Nx, 1.0, 1.0, bc='outflow', max_level=max_level)
-    mesh.indicator = indicator
-    init_from(mesh, W_init)
+    if init: 
+        mesh = Mesh(Nx, Nx, 1.0, 1.0, bc='outflow', max_level=max_level)
+        init_from(mesh, W_init)        
+        mesh.indicator = indicator
 
+    print('Start running')
     run_sim(mesh, max_level, t_end, cfl, eta_refine, eta_coarsen,
                regrid_every, mode, verbose, label='riemann2d')
 
@@ -235,7 +237,7 @@ def run_riemann2d(Nx=64, max_level=3, t_end=0.3, cfl=0.4,
 def run_kelvin_helmholtz(Nx=64, max_level=3, t_end=1.5, cfl=0.3,
                          eta_refine=None, eta_coarsen=None, regrid_every=2,
                          mode='between', indicator='detail',
-                         plot_file=None, verbose=True):
+                         plot_file=None, verbose=True, init=True, mesh=None):
     """
     Kelvin-Helmholtz instability
     BC: 'outflow'/'reflect'
@@ -255,9 +257,10 @@ def run_kelvin_helmholtz(Nx=64, max_level=3, t_end=1.5, cfl=0.3,
         p = 2.5
         return np.array([rho, u, v, p])
 
-    mesh = Mesh(Nx, Nx, 1.0, 1.0, bc='outflow', max_level=max_level)
-    mesh.indicator = indicator
-    init_from(mesh, W_init)
+    if init:
+        mesh = Mesh(Nx, Nx, 1.0, 1.0, bc='outflow', max_level=max_level)
+        mesh.indicator = indicator
+        init_from(mesh, W_init)
 
     run_sim(mesh, max_level, t_end, cfl, eta_refine, eta_coarsen,
                regrid_every, mode, verbose, label='kh')

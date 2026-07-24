@@ -120,6 +120,8 @@ def grad_init(mesh):
         grad, _ = grad_and_chi(mesh, c)
         c.prim_grad = grad
 
+    return mesh
+
 def get_grad(mesh, c, var='U'):
     value = c.get_cell_value(var)
 
@@ -148,7 +150,9 @@ import matplotlib.colors as mcolors
 def L1_error(mesh, mesh_ref, plot=True, verbose=True):
 
     var = 'W' # always compare primitive var for error
- 
+
+    mesh = grad_init(mesh)
+    mesh_ref = grad_init(mesh_ref)
     cell_list = mesh.get_active_cells()
  
     errors = []       # per-cell (value - ref_value), signed, vector len 4
