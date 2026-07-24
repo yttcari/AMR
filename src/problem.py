@@ -265,3 +265,31 @@ def run_kelvin_helmholtz(Nx=64, max_level=3, t_end=1.5, cfl=0.3,
     if plot_file:
         plot(mesh, plot_file, title=f'Kelvin-Helmholtz, t={t_end:.3f}')
     return mesh
+
+    
+def run_smooth_sine_1d(Nx=100, Ny=6, max_level=0, t_end=0.2, cfl=0.4,
+                       eta_refine=None, eta_coarsen=None, regrid_every=2,
+                       mode='uniform', indicator='detail',
+                       plot_file=None, verbose=True,
+                       rho0=1.0, amp=0.2, u0=1.0, p0=1.0, reconstruction=1):
+
+    if eta_refine is None:
+        eta_refine = {'jump': 0.12, 'detail': 0.45}[indicator]
+    if eta_coarsen is None:
+        eta_coarsen = {'jump': 0.03, 'detail': 0.15}[indicator]
+ 
+    def W_init(x, y):
+        rho = rho0 + amp * np.sin(2.0 * np.pi * x)
+        return np.array([rho, u0, 0.0, p0])
+ 
+    h0 = 1.0 / Nx
+    mesh = Mesh(Nx, Ny, 1.0, Ny * h0, bc='periodic', max_level=max_level, reconstruction=reconstruction)
+    mesh.indicator = indicator
+    init_from(mesh, W_init)
+ 
+    run_sim(mesh, max_level, t_end, cfl, eta_refine, eta_coarsen,
+               regrid_every, mode, verbose, label='smooth_sine_1d')
+ 
+    if plot_file:
+        plot(mesh, plot_file, title=f'Smooth sine advection, t={t_end:.3f}')
+    return mesh

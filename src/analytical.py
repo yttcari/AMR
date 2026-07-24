@@ -183,3 +183,26 @@ def exact_mesh_1d(Nx, Ny, WL, WR, x0, t, Lx=1.0, gamma=GAMMA,
 
     compute_rhs(mesh, *build_faces(mesh)) 
     return mesh
+
+
+def sine_wave_exact(x, t, rho0=1.0, amp=0.2, u0=1.0, p0=1.0, Lx=1.0):
+
+    x_arr = np.atleast_1d(np.asarray(x, dtype=float))
+    rho = rho0 + amp * np.sin(2.0 * np.pi * (x_arr - u0 * t) / Lx)
+    u = np.full_like(rho, u0)
+    v = np.zeros_like(rho)
+    p = np.full_like(rho, p0)
+    out = np.stack([rho, u, v, p], axis=-1)
+    return out if np.ndim(x) > 0 else out[0]
+ 
+def sine_wave_mesh_like(mesh, t, rho0=1.0, amp=0.2, u0=1.0, p0=1.0, Lx=1.0):
+    
+    mesh_ref = copy.deepcopy(mesh)
+    cells = mesh_ref.get_active_cells()
+    xs = np.array([c.x for c in cells])
+    Ws = sine_wave_exact(xs, t, rho0=rho0, amp=amp, u0=u0, p0=p0, Lx=Lx)
+    for c, W in zip(cells, Ws):
+        c.U = prim2con(W)
+ 
+    compute_rhs(mesh_ref, *build_faces(mesh_ref))
+    return mesh_ref
