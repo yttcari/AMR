@@ -35,14 +35,14 @@ def build_faces(mesh):
     return interior, boundary_cells
 
 
-def reconstruct(c, xface, yface):
-    # MUSCL reconstruction
-    # TODO: add selection for multipler order
-    W = c.W + c.prim_grad[:, 0] * (xface - c.x) + c.prim_grad[:, 1] * (yface - c.y)
-    if W[0] <= EPSILON or W[3] <= EPSILON:
+def reconstruct(c, xface, yface, reconstruction=1):
+    if reconstruction == 0:
         return c.W.copy()
-    return W
-
+    elif reconstruction == 1:
+        W = c.W + c.prim_grad[:, 0] * (xface - c.x) + c.prim_grad[:, 1] * (yface - c.y)
+        if W[0] <= EPSILON or W[3] <= EPSILON:
+            return c.W.copy()
+        return W
 
 def compute_rhs(mesh, interior, boundary_cells):
 
@@ -56,8 +56,12 @@ def compute_rhs(mesh, interior, boundary_cells):
         c.prim_grad, c.chi = grad_and_chi(mesh, c)
 
     for (L, R, axis, xface, yface, face_length) in interior:
-        primL = reconstruct(L, xface, yface)
-        primR = reconstruct(R, xface, yface)
+        if axis == 0:
+            primL = reconstruct(L, L.x + L.h / 2, L.y, reconstruction=mesh.reconstruction)
+            primR = reconstruct(R, R.x - R.h / 2, R.y, reconstruction=mesh.reconstruction)
+        else:
+            primL = reconstruct(L, L.x, L.y + L.h / 2, reconstruction=mesh.reconstruction)
+            primR = reconstruct(R, R.x, R.y - R.h / 2, reconstruction=mesh.reconstruction)
     
         flux = riemann(primL, primR, axis)
     

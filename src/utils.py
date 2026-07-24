@@ -143,9 +143,11 @@ def get_grad(mesh, c, var='U'):
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
- 
-def L1_error(mesh, mesh_ref, var='W', plot=True):
-    import matplotlib.colors as mcolors
+import matplotlib.colors as mcolors 
+
+def L1_error(mesh, mesh_ref, plot=True, verbose=True):
+
+    var = 'W' # always compare primitive var for error
  
     cell_list = mesh.get_active_cells()
  
@@ -169,7 +171,10 @@ def L1_error(mesh, mesh_ref, var='W', plot=True):
  
     # volume-weighted L1 norm (always uses magnitude, regardless of plot coloring)
     L1 = np.sum(np.abs(errors) * volumes[:, None], axis=0) / np.sum(volumes)
- 
+    if verbose:
+        print(f"Mean L1 Error: {np.mean(L1):.3e}")
+        print(f"L1 error for rho: {L1[0]:.3e}, vx: {L1[1]:.3e}, vy: {L1[2]:.3e}, P: {L1[3]:.3e}")
+
     if plot:
         err_mag = np.abs(errors[:, 0])                 # magnitude: 0 at no error
  
@@ -214,5 +219,5 @@ def L1_error(mesh, mesh_ref, var='W', plot=True):
         sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
         fig.colorbar(sm, ax=ax, label='|error|')
         plt.show()
- 
+
     return L1

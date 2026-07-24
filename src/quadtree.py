@@ -30,7 +30,7 @@ class Cell:
         else:
             raise ValueError("Does not recognise the input variable")
 
-    def get_value(self, x, y, var, reconstruction=0):
+    def get_value(self, x, y, var, reconstruction):
         # make sure the input coord is within the cell
         assert x <= self.x + self.h/2 + EPSILON and x >= self.x - self.h/2 - EPSILON
         assert y <= self.y + self.h/2 + EPSILON and y >= self.y - self.h/2 - EPSILON
@@ -38,31 +38,10 @@ class Cell:
         if reconstruction == 0:
             return self.W if var == 'W' else self.U
         elif reconstruction == 1:
+            assert self.dUdt is not None 
 
             MUSCL_W = self.W + self.prim_grad[:, 0] * (x - self.x) + self.prim_grad[:, 1] * (y - self.y)
             return MUSCL_W if var == 'W' else prim2con(MUSCL_W)
-
-    def __repr__(self):
-        def fmt(v):
-            if isinstance(v, np.ndarray):
-                return f"array{v.shape}={v}"
-            if v is None:
-                return "None"
-            return repr(v)
-
-        lines = [f"Cell(x={self.x:.4f}, y={self.y:.4f}, h={self.h:.4f}, level={self.level})"]
-        for slot in self.__slots__:
-            if slot in ('x', 'y', 'h', 'level'):
-                continue  # already shown in header
-            val = getattr(self, slot, "<unset>")
-            if slot == 'children':
-                val = f"[{len(val)} children]" if val is not None else "None"
-            elif slot == 'parent':
-                val = f"Cell(level={val.level})" if val is not None else "None"
-            else:
-                val = fmt(val)
-            lines.append(f"  {slot:10s} = {val}")
-        return "\n".join(lines)
 
 
 class Mesh:
@@ -156,7 +135,10 @@ class Mesh:
             pts = ((c.x - h / 4, c.y + h / 2 + eps), (c.x + h / 4, c.y + h / 2 + eps))
         else:
             pts = ((c.x - h / 4, c.y - h / 2 - eps), (c.x + h / 4, c.y - h / 2 - eps))
-        
+
+        if self.bc == 'periodic':
+            pts = tuple((px % self.Lx, py % self.Ly) for px, py in pts)
+
         out = []
         
         for p in pts:
