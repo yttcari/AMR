@@ -147,7 +147,8 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.colors as mcolors 
 
-def L1_error(mesh, mesh_ref, plot=True, verbose=True):
+def RMSE_error(mesh, mesh_ref, plot_var, plot=True, verbose=True):
+    ind = {'rho': 0, 'vx': 1, "vy": 2, 'p': 3}
 
     var = 'W' # always compare primitive var for error
 
@@ -173,17 +174,17 @@ def L1_error(mesh, mesh_ref, plot=True, verbose=True):
     errors = np.array(errors)     
     volumes = np.array(volumes)   
  
-    # volume-weighted L1 norm (always uses magnitude, regardless of plot coloring)
-    L1 = np.sum(np.abs(errors) * volumes[:, None], axis=0) / np.sum(volumes)
+    # volume-weighted RMSE norm (always uses magnitude, regardless of plot coloring)
+    RMSE = np.sum(np.sqrt(errors ** 2) * volumes[:, None], axis=0) / np.sum(volumes)
     if verbose:
-        print(f"Mean L1 Error: {np.mean(L1):.3e}")
-        print(f"L1 error for rho: {L1[0]:.3e}, vx: {L1[1]:.3e}, vy: {L1[2]:.3e}, P: {L1[3]:.3e}")
+        print(f"Mean RMSE Error: {np.mean(RMSE):.3e}")
+        print(f"RMSE error for rho: {RMSE[0]:.3e}, vx: {RMSE[1]:.3e}, vy: {RMSE[2]:.3e}, P: {RMSE[3]:.3e}")
 
     if plot:
-        err_mag = np.abs(errors[:, 0])                 # magnitude: 0 at no error
+        err_mag = errors[:, ind[plot_var]]
  
         if mesh.Nx == 1 or mesh.Ny == 1:
-            # degenerate direction: plot |error| along the surviving axis
+            # degenerate direction: plot RMSE along the surviving axis
             # instead of the 2D patch grid.
             along_x = mesh.Ny == 1
             coord = np.array([c.x if along_x else c.y for c in cell_list])
@@ -194,11 +195,11 @@ def L1_error(mesh, mesh_ref, plot=True, verbose=True):
             fig, ax = plt.subplots(figsize=(7, 4.5))
             ax.plot(coord_s, err_s, color='red')
             ax.set_xlabel('x' if along_x else 'y')
-            ax.set_ylabel('|error|')
-            ax.set_title(f'{var}[0] |error| (density), L1 = {L1[0]:.4e}')
+            ax.set_ylabel('RMSE')
+            ax.set_title(f'{plot_var} RMSE = {RMSE[0]:.4e}')
             ax.grid(alpha=0.3)
             plt.show()
-            return L1
+            return RMSE
  
         fig, ax = plt.subplots(figsize=(6, 6))
         vmax = err_mag.max() if err_mag.max() > 0 else 1.0
@@ -218,10 +219,10 @@ def L1_error(mesh, mesh_ref, plot=True, verbose=True):
         ax.set_xlim(0, mesh.Lx)
         ax.set_ylim(0, mesh.Ly)
         ax.set_aspect('equal')
-        ax.set_title(f'{var}[0] |error| (density), L1 = {L1[0]:.4e}')
+        ax.set_title(f'{plot_var} RMSE = {RMSE[0]:.4e}')
  
         sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
-        fig.colorbar(sm, ax=ax, label='|error|')
+        fig.colorbar(sm, ax=ax, label='RMSE')
         plt.show()
 
-    return L1
+    return RMSE
