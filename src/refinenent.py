@@ -3,14 +3,16 @@ from utils import *
 from quadtree import *
 
 
-def refine_cell(mesh, c):
+def refine_cell(mesh, c, grad=None):
     """
     Refine cell
     # TODO: currently it is direct copy of parent cell value, 
     include reconstruction if possible
     """
 
-    grad = get_grad(mesh, c)
+    if grad is None:
+        grad = get_grad(mesh, c)
+        
     half_width = c.h / 2.0
 
     kids = []
@@ -50,6 +52,7 @@ def coarsen_cell(parent):
 
 
 def coarsen_pass(mesh, eta_coarsen):
+    candidates = []
     for p in mesh.get_parents():
         kids = p.children
         if any(k.chi > eta_coarsen for k in kids):
@@ -61,7 +64,9 @@ def coarsen_pass(mesh, eta_coarsen):
                     if n.h < k.h * (1 - 1e-12):
                         ok = False
         if ok:
-            coarsen_cell(p)
+            candidates.append(p)
+    for p in candidates:
+        coarsen_cell(p)
 
 
 def flag_refinement(mesh, eta_refine, max_level, buffer=True):
@@ -110,5 +115,8 @@ def refresh_chi(mesh):
 def regrid(mesh, eta_refine, eta_coarsen, max_level, buffer=True):
     refresh_chi(mesh)
     coarsen_pass(mesh, eta_coarsen)
-    for c in flag_refinement(mesh, eta_refine, max_level, buffer):
-        refine_cell(mesh, c)
+    flagged = flag_refinement(mesh, eta_refine, max_level, buffer)
+
+    grads = [get_grad(mesh, c) for c in flagged]     # compute grad first
+    for c, g in zip(flagged, grads):
+        refine_cell(mesh, c, g)                      

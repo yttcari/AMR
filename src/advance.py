@@ -51,8 +51,9 @@ def advance_adaptive(mesh, cfl, eta_refine, max_level,
     flagged = flag_refinement(mesh, eta_refine, max_level, buffer)
 
     if flagged:
-        for c in flagged:
-            refine_cell(mesh, c)                 
+        grads = [get_grad(mesh, c) for c in flagged]   # snapshot before splitting
+        for c, g in zip(flagged, grads):
+            refine_cell(mesh, c, g)
         dt = min(compute_dt(mesh, cfl), dt_max)  
         interior, boundary = build_faces(mesh)
         compute_rhs(mesh, interior, boundary)    
