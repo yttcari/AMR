@@ -81,7 +81,6 @@ def grad_and_chi(mesh, c):
     W = c.W
     g = np.zeros((4, 2))
     chi = 0.0
-    detail = (mesh.indicator == 'detail')
 
     for axis, (dp, dm) in enumerate((('+x', '-x'), ('+y', '-y'))):
         positive_cells = mesh.neighbors(c, dp) # all cells in positive x/y direction
@@ -96,19 +95,10 @@ def grad_and_chi(mesh, c):
             avg_M = np.mean([n.W for n in negative_cells], axis=0)
             grad_m = (W - avg_M) / (0.5 * (c.h + negative_cells[0].h))
 
-        if detail:
-            if avg_p is not None and avg_M is not None:
+        for q_n in (avg_p, avg_M):
+            if q_n is not None:
                 for k in (0, 3):
-                    num = abs(avg_p[k] - 2.0 * W[k] + avg_M[k])
-                    den = (abs(avg_p[k] - W[k]) + abs(W[k] - avg_M[k])
-                           + 0.02 * (abs(avg_p[k]) + 2.0 * abs(W[k]) + abs(avg_M[k]))
-                           + EPSILON)
-                    chi = max(chi, num / den)
-        else:
-            for q_n in (avg_p, avg_M):
-                if q_n is not None:
-                    for k in (0, 3):
-                        chi = max(chi, abs(q_n[k] - W[k]) / (abs(W[k]) + EPSILON)) # relative gradient
+                    chi = max(chi, abs(q_n[k] - W[k]) / (abs(W[k]) + EPSILON)) # relative gradient
 
         if grad_p is not None and grad_m is not None:
             g[:, axis] = minmod(grad_p, grad_m)
