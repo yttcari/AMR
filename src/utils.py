@@ -1,5 +1,8 @@
 import numpy as np
 from constant import *
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+import matplotlib.colors as mcolors 
 
 def prim2con(W):
     rho, u, v, p = W
@@ -132,12 +135,28 @@ def get_grad(mesh, c, var='U'):
             g[:, axis] = minmod(grad_p, grad_m)
     return g
 
+def restrict_to_cell(mesh_ref, c, var='W'):
+        # coarsen finer mesh to match coarser mesh in error calculation
+        xlo, xhi = c.x - c.h / 2.0, c.x + c.h / 2.0
+        ylo, yhi = c.y - c.h / 2.0, c.y + c.h / 2.0
 
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-import matplotlib.colors as mcolors 
+        acc, tot = np.zeros(4), 0.0
+        for n in mesh_ref.leaves_in_box(xlo, xhi, ylo, yhi):
+            nxlo, nxhi = max(xlo, n.x - n.h / 2), min(xhi, n.x + n.h / 2)
+            nylo, nyhi = max(ylo, n.y - n.h / 2), min(yhi, n.y + n.h / 2)
+            ox, oy = nxhi - nxlo, nyhi - nylo
+            if ox <= 0.0 or oy <= 0.0:
+                continue
+            area = ox * oy
+            acc += n.get_value(0.5 * (nxlo + nxhi), 0.5 * (nylo + nyhi),
+                               'U', mesh_ref.reconstruction) * area
+            tot += area
+
+        U = acc / tot
+        return con2prim(U) if var == 'W' else U
 
 def RMSE_error(mesh, mesh_ref, plot_var, plot=True, verbose=True):
+    # mesh_ref must be finer one
     ind = {'rho': 0, 'vx': 1, "vy": 2, 'p': 3}
 
     var = 'W' # always compare primitive var for error
@@ -148,16 +167,37 @@ def RMSE_error(mesh, mesh_ref, plot_var, plot=True, verbose=True):
  
     errors = []       # per-cell (value - ref_value), signed, vector len 4
     volumes = []       # per-cell volume, for weighting
+
+    def restrict_to_cell(mesh_ref, c, var='W'):
+        # coarsen finer mesh to match coarser mesh in error calculation
+        xlo, xhi = c.x - c.h / 2.0, c.x + c.h / 2.0
+        ylo, yhi = c.y - c.h / 2.0, c.y + c.h / 2.0
+
+        acc, tot = np.zeros(4), 0.0
+        for n in mesh_ref.leaves_in_box(xlo, xhi, ylo, yhi):
+            nxlo, nxhi = max(xlo, n.x - n.h / 2), min(xhi, n.x + n.h / 2)
+            nylo, nyhi = max(ylo, n.y - n.h / 2), min(yhi, n.y + n.h / 2)
+            ox, oy = nxhi - nxlo, nyhi - nylo
+            if ox <= 0.0 or oy <= 0.0:
+                continue
+            area = ox * oy
+            acc += n.get_value(0.5 * (nxlo + nxhi), 0.5 * (nylo + nyhi),
+                               'U', mesh_ref.reconstruction) * area
+            tot += area
+
+        U = acc / tot
+        return con2prim(U) if var == 'W' else U
  
     for c in cell_list:
         try:
             val = mesh.get_value(x=c.x, y=c.y, var=var)
         except:
+            # DEBUG
             print(c)
             raise ValueError
-        ref_val = mesh_ref.get_value(x=c.x, y=c.y, var=var)
- 
-        err = val - ref_val
+        ref_val = restrict_to_cell(mesh_ref, c, var) 
+        err = abs(val - ref_val)
+
         errors.append(err)
         volumes.append(c.volume)
  
