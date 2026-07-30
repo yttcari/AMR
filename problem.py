@@ -7,8 +7,7 @@ def init_from(mesh, W_init):
     for c in mesh.get_active_cells():
         c.U = prim2con(W_init(c.x, c.y))
 
-def run_sim(mesh, max_level, t_end, cfl, eta_refine, eta_coarsen,
-               regrid_every, mode, verbose, label):
+def run_sim(mesh, max_level, t_end, cfl, eta_refine, eta_coarsen, mode, verbose, label):
     """
     Shared driver for the problem setups below (run_blast keeps its own
     copy of this logic untouched, for backward compatibility).
@@ -20,23 +19,22 @@ def run_sim(mesh, max_level, t_end, cfl, eta_refine, eta_coarsen,
                        integration, regridded every `regrid_every` steps
     """
     try:
-        t, step = 0.0, 0
+        t, step = mesh.t, 0
         while t < t_end - 1e-12:
             if mode == 'in_step':
                 dt = advance_adaptive(mesh, cfl, eta_refine, max_level,
                                       dt_max=t_end - t)
                 t += dt
                 step += 1
-                if step % regrid_every == 0:
-                    coarsen_only(mesh, eta_coarsen)
-            elif mode == 'between' or mode == 'uniform':
+
+                coarsen_only(mesh, eta_coarsen)
+
+            elif mode == 'between':
                 dt = advance(mesh, cfl, dt_max=t_end - t)
                 t += dt
                 step += 1
-                if mode == 'between':
-                    if step % regrid_every == 0:
-                        regrid(mesh, eta_refine, eta_coarsen, max_level)
-                        grad_init(mesh)
+                regrid(mesh, eta_refine, eta_coarsen, max_level)
+                grad_init(mesh)
             else: 
                 raise ValueError("Unrecognised mode. STOP")
 
@@ -53,7 +51,7 @@ def run_sim(mesh, max_level, t_end, cfl, eta_refine, eta_coarsen,
 
 
 def run_blast(Nx=32, max_level=2, t_end=0.15, cfl=0.4,
-              eta_refine=None, eta_coarsen=None, regrid_every=2,
+              eta_refine=None, eta_coarsen=None,
               mode='in_step', indicator='detail',
               plot_file=None, verbose=True, init=True, mesh=None):
     """
@@ -73,45 +71,25 @@ def run_blast(Nx=32, max_level=2, t_end=0.15, cfl=0.4,
         if r < 0.13:
             return np.array([1.0, 0.0, 0.0, 1.0])
         return np.array([0.125, 0.0, 0.0, 0.1])
+    
     if init:
         mesh = Mesh(Nx, Nx, 1.0, 1.0, bc='outflow')
         mesh.indicator = indicator
-
+    else:
+        assert mesh is not None
     init_from(mesh, W_init)
-    
-    t, step = 0.0, 0
-    while t < t_end - 1e-12:
-        if mode == 'in_step':
-            dt = advance_adaptive(mesh, cfl, eta_refine, max_level,
-                                  dt_max=t_end - t)
-            t += dt
-            step += 1
-            if step % regrid_every == 0:
-                coarsen_only(mesh, eta_coarsen)
- 
-        else:
-            dt = advance(mesh, cfl, dt_max=t_end - t)
-            t += dt
-            step += 1
-            if mode == 'between':
-                if step % regrid_every == 0:
-                    regrid(mesh, eta_refine, eta_coarsen, max_level)
-                    grad_init(mesh)
 
-        if verbose and step % 20 == 0:
-            print(f"step {step:4d}  t={t:.4f}  dt={dt:.2e}  "
-                  f"get_active_cells={len(mesh.get_active_cells()):5d}")
+    history = []
+    run_sim(mesh, max_level, t_end, cfl, eta_refine, eta_coarsen, mode, verbose, label='lax_1d')
 
-    if verbose:
-        print(f"done: {step} steps, t={t:.4f}, ")
     if plot_file:
         plot(mesh, plot_file,
              title=f'2D AMR blast, base {Nx}x{Nx}, max level {max_level}, '
-                   f't={t:.3f}')
-    return mesh
+                   f't={mesh.t:.3f}')
+    return mesh, history
 
 def run_sod_1d(Nx=200, Ny=6, max_level=3, t_end=0.20, cfl=0.4,
-               eta_refine=None, eta_coarsen=None, regrid_every=2,
+               eta_refine=None, eta_coarsen=None, 
                mode='between', indicator='detail',
                plot_file=None, verbose=True):
     """
@@ -135,15 +113,15 @@ def run_sod_1d(Nx=200, Ny=6, max_level=3, t_end=0.20, cfl=0.4,
     init_from(mesh, W_init)
 
     run_sim(mesh, max_level, t_end, cfl, eta_refine, eta_coarsen,
-               regrid_every, mode, verbose, label='sod_1d')
+                mode, verbose, label='sod_1d')
 
     if plot_file:
-        plot(mesh, plot_file, title=f'Sod shock tube, t={t_end:.3f}')
+        plot(mesh, plot_file, title=f'Sod shock tube, t={mesh.:.3f}')
     return mesh
 
 
 def run_lax_1d(Nx=200, Ny=6, max_level=3, t_end=0.13, cfl=0.4,
-               eta_refine=None, eta_coarsen=None, regrid_every=2,
+               eta_refine=None, eta_coarsen=None, 
                mode='between', indicator='detail',
                plot_file=None, verbose=True):
 
@@ -162,14 +140,14 @@ def run_lax_1d(Nx=200, Ny=6, max_level=3, t_end=0.13, cfl=0.4,
     init_from(mesh, W_init)
 
     run_sim(mesh, max_level, t_end, cfl, eta_refine, eta_coarsen,
-               regrid_every, mode, verbose, label='lax_1d')
+                mode, verbose, label='lax_1d')
 
     if plot_file:
-        plot(mesh, plot_file, title=f'Lax shock tube, t={t_end:.3f}')
+        plot(mesh, plot_file, title=f'Lax shock tube, t={mesh.t:.3f}')
     return mesh
 
 def run_implosion(Nx=64, max_level=3, t_end=2.5, cfl=0.4,
-                  eta_refine=None, eta_coarsen=None, regrid_every=2,
+                  eta_refine=None, eta_coarsen=None, 
                   mode='between', indicator='detail',
                   plot_file=None, verbose=True):
     
@@ -188,15 +166,15 @@ def run_implosion(Nx=64, max_level=3, t_end=2.5, cfl=0.4,
     init_from(mesh, W_init)
 
     run_sim(mesh, max_level, t_end, cfl, eta_refine, eta_coarsen,
-               regrid_every, mode, verbose, label='implosion')
+                mode, verbose, label='implosion')
 
     if plot_file:
-        plot(mesh, plot_file, title=f'Implosion, t={t_end:.3f}')
+        plot(mesh, plot_file, title=f'Implosion, t={mesh.t:.3f}')
     return mesh
 
 
 def run_riemann2d(Nx=64, max_level=3, t_end=0.3, cfl=0.4,
-                  eta_refine=None, eta_coarsen=None, regrid_every=2,
+                  eta_refine=None, eta_coarsen=None, 
                   mode='between', indicator='detail',
                   plot_file=None, verbose=True, init=True, mesh=None):
     """
@@ -226,16 +204,16 @@ def run_riemann2d(Nx=64, max_level=3, t_end=0.3, cfl=0.4,
 
     print('Start running')
     run_sim(mesh, max_level, t_end, cfl, eta_refine, eta_coarsen,
-               regrid_every, mode, verbose, label='riemann2d')
+                mode, verbose, label='riemann2d')
 
     if plot_file:
         plot(mesh, plot_file,
-             title=f'2D Riemann problem (config. 3), t={t_end:.3f}')
+             title=f'2D Riemann problem (config. 3), t={mesh.t:.3f}')
     return mesh
 
 
 def run_kelvin_helmholtz(Nx=64, max_level=3, t_end=1.5, cfl=0.3,
-                         eta_refine=None, eta_coarsen=None, regrid_every=2,
+                         eta_refine=None, eta_coarsen=None, 
                          mode='between', indicator='detail',
                          plot_file=None, verbose=True, init=True, mesh=None):
     """
@@ -263,15 +241,15 @@ def run_kelvin_helmholtz(Nx=64, max_level=3, t_end=1.5, cfl=0.3,
         init_from(mesh, W_init)
 
     run_sim(mesh, max_level, t_end, cfl, eta_refine, eta_coarsen,
-               regrid_every, mode, verbose, label='kh')
+                mode, verbose, label='kh')
 
     if plot_file:
-        plot(mesh, plot_file, title=f'Kelvin-Helmholtz, t={t_end:.3f}')
+        plot(mesh, plot_file, title=f'Kelvin-Helmholtz, t={mesh.t:.3f}')
     return mesh
 
     
 def run_smooth_sine_1d(Nx=100, Ny=6, max_level=0, t_end=0.2, cfl=0.4,
-                       eta_refine=None, eta_coarsen=None, regrid_every=2,
+                       eta_refine=None, eta_coarsen=None, 
                        mode='uniform', indicator='detail',
                        plot_file=None, verbose=True,
                        rho0=1.0, amp=0.2, u0=1.0, p0=1.0, reconstruction=1):
@@ -291,8 +269,8 @@ def run_smooth_sine_1d(Nx=100, Ny=6, max_level=0, t_end=0.2, cfl=0.4,
     init_from(mesh, W_init)
  
     run_sim(mesh, max_level, t_end, cfl, eta_refine, eta_coarsen,
-               regrid_every, mode, verbose, label='smooth_sine_1d')
+                mode, verbose, label='smooth_sine_1d')
  
     if plot_file:
-        plot(mesh, plot_file, title=f'Smooth sine advection, t={t_end:.3f}')
+        plot(mesh, plot_file, title=f'Smooth sine advection, t={mesh.t:.3f}')
     return mesh
